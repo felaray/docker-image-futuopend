@@ -13,6 +13,7 @@ class FutuManager {
   #login_pwd_md5
   #lang
   #log_level
+  #ip
   #api_port
   #status
   #supervise
@@ -31,6 +32,7 @@ class FutuManager {
     login_pwd_md5,
     lang,
     log_level,
+    ip,
     api_port,
     server_port,
 
@@ -41,6 +43,7 @@ class FutuManager {
     supervise = true
   }) {
     this.#cmd = cmd
+    this.#ip = ip
     this.#login_account = login_account
     this.#login_pwd_md5 = login_pwd_md5
     this.#lang = lang
@@ -141,6 +144,7 @@ class FutuManager {
     this.#status = STATUS.INIT
 
     this.#log('Initializing FutuOpenD with options ...', {
+      ip: this.#ip,
       login_account: this.#login_account,
       login_pwd_md5: '<hidden>',
       lang: this.#lang,
@@ -149,6 +153,7 @@ class FutuManager {
     })
 
     this.#child = pty.spawn(this.#cmd, [
+      `-ip=${this.#ip}`,
       `-login_account=${this.#login_account}`,
       `-login_pwd_md5=${this.#login_pwd_md5}`,
       `-lang=${this.#lang}`,

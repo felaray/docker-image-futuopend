@@ -116,6 +116,9 @@ ENV FUTU_LOGIN_PWD_MD5=
 # ENV FUTU_LOGIN_REGION=sh
 ENV FUTU_LANG=en
 ENV FUTU_LOG_LEVEL=no
+
+# Use 0.0.0.0 by default so it could accept connections from other containers
+ENV FUTU_IP=0.0.0.0
 ENV FUTU_PORT=11111
 ENV SERVER_PORT=8000
 ENV FUTU_INIT_ON_START=yes
