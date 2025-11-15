@@ -13,7 +13,7 @@ jobs:
         node-version: [22.x]
     runs-on: ${{ matrix.os }}
     env:
-      FUTU_VERSION: 9.4.5408
+      FUTU_VERSION: 9.4.5418
 
     steps:
       # Checkout the repository

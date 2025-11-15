@@ -24,7 +24,7 @@ The image is always built with `DOCKER_DEFAULT_PLATFORM=linux/amd64` ([why?](htt
 
 ```sh
 # Recommended (to pull an image by providing specific tag name)
-docker pull ostai/futuopend:9.2.5208
+docker pull ostai/futuopend:9.4.5418
 ```
 
 Or

@@ -24,7 +24,7 @@ docker pull ostai/futuopend:latest
 或者
 
 ```sh
-docker pull ostai/futuopend:9.2.5208
+docker pull ostai/futuopend:9.4.5418
 ```
 
 ## 最新支持的 FutuOpenD 镜像版本
