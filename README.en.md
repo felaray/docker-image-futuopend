@@ -35,7 +35,10 @@ docker pull ostai/futuopend:latest
 
 ## Lastest FutuOpenD Image Version
 
-9.2.5208_Ubuntu16.04
+- 9.4.5418_Ubuntu16.04
+- 9.4.5408_Ubuntu16.04
+- 9.3.5308_Ubuntu16.04
+- 9.2.5208_Ubuntu16.04
 
 [Other versions](https://hub.docker.com/r/ostai/futuopend/tags)
 
