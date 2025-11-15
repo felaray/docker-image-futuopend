@@ -153,11 +153,14 @@ class FutuManager {
     })
 
     this.#child = pty.spawn(this.#cmd, [
-      `-ip=${this.#ip}`,
       `-login_account=${this.#login_account}`,
       `-login_pwd_md5=${this.#login_pwd_md5}`,
       `-lang=${this.#lang}`,
       `-log_level=${this.#log_level}`,
+      // Ref:
+      // https://openapi.futunn.com/futu-api-doc/en/opend/opend-cmd.html#7191
+      `-api_ip=${this.#ip}`,
+      `-websocket_ip=${this.#ip}`,
       `-api_port=${this.#api_port}`
     ], {
       name: 'xterm-color',
