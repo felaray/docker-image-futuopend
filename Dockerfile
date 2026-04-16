@@ -88,22 +88,16 @@ WORKDIR /usr/src/app
 
 ARG FUTU_VERSION=10.3.6308_Ubuntu18.04
 
-RUN wget -O Futu_OpenD.tar.gz https://softwaredownload.futunn.com/Futu_OpenD_$FUTU_VERSION.tar.gz \
-&& tar -xf Futu_OpenD.tar.gz --strip-components=1 \
-&& mkdir bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/AppData.dat ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/FTWebSocket ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/FutuOpenD ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/FutuOpenD.xml ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/libFTAPIChannel.so ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/libf3cbasis.so ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/libf3clog.so ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/libf3clogin.so ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/libf3cloguploader.so ./bin \
-&& mv ./Futu_OpenD_${FUTU_VERSION}/libf3creport.so ./bin \
-&& rm -rf Futu_OpenD* \
-&& chmod +x bin/FutuOpenD \
-&& ls
+RUN set -eux; \
+wget -O Futu_OpenD.tar.gz https://softwaredownload.futunn.com/Futu_OpenD_$FUTU_VERSION.tar.gz; \
+tar -xf Futu_OpenD.tar.gz; \
+mkdir bin; \
+archive_dir="$(find . -type f -name FutuOpenD -printf '%h\n' | head -n 1)"; \
+test -n "$archive_dir"; \
+cp -a "$archive_dir"/. ./bin/; \
+rm -rf Futu_OpenD.tar.gz Futu_OpenD_*; \
+chmod +x bin/FutuOpenD; \
+ls ./bin
 
 # If we `COPY --from=builder /usr/src/node_modules .`,
 #   there will be no /usr/src/app/node_modules directory,
