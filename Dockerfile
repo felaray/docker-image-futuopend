@@ -1,12 +1,19 @@
-# https://softwaredownload.futunn.com/Futu_OpenD_8.8.4818_Ubuntu16.04.tar.gz
+# https://softwaredownload.futunn.com/Futu_OpenD_10.3.6308_Ubuntu18.04.tar.gz
 
 # ==============================================================================
 # Stage 1: Build Python from Source
 # ==============================================================================
-FROM ostai/ubuntu-node:16.04-16 AS builder
+FROM ubuntu:18.04 AS builder
 
 # Set non-interactive mode for apt-get
 ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Node.js 16
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG PYTHON_VERSION=3.8.20
 ARG PYTHON_SHORT_VERSION=3.8
@@ -67,19 +74,19 @@ RUN npm i --omit=dev
 # ==============================================================================
 # Stage 2: Create Final Runtime Image
 # ==============================================================================
-FROM ostai/ubuntu-node:16.04-16
+FROM ubuntu:18.04
+
+# Install Node.js 16, wget and ca-certificates (needed for HTTPS requests)
+RUN apt-get update \
+    && apt-get install -y curl ca-certificates wget \
+    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 WORKDIR /usr/src/app
 
-RUN apt-get update \
-# We need ca-certificates to make HTTPS requests,
-#   so we should install recommends when installing wget,
-#   avoid using --no-install-recommends
-&& apt-get install -y wget \
-&& rm -rf /var/lib/apt/lists/* \
-&& apt-get clean
-
-ARG FUTU_VERSION=9.2.5208_Ubuntu16.04
+ARG FUTU_VERSION=10.3.6308_Ubuntu18.04
 
 RUN wget -O Futu_OpenD.tar.gz https://softwaredownload.futunn.com/Futu_OpenD_$FUTU_VERSION.tar.gz \
 && tar -xf Futu_OpenD.tar.gz --strip-components=1 \

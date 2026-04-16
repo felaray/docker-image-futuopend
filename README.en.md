@@ -1,9 +1,8 @@
 [中文版](https://github.com/kaelzhang/docker-image-futuopend)
 
-# Docker Image: ostai/ FutuOpenD
+# Docker Image: felaray/FutuOpenD
 
 [![Build Status](https://github.com/kaelzhang/docker-image-futuopend/actions/workflows/docker.yml/badge.svg)](https://github.com/kaelzhang/docker-image-futuopend/actions/workflows/docker.yml)
-[![Coverage](https://codecov.io/gh/kaelzhang/docker-image-futuopend/branch/master/graph/badge.svg)](https://codecov.io/gh/kaelzhang/docker-image-futuopend)
 
 
 Docker image for FutuOpenD on Ubuntu, the one that really works and could handle SMS verification requests.
@@ -24,23 +23,24 @@ The image is always built with `DOCKER_DEFAULT_PLATFORM=linux/amd64` ([why?](htt
 
 ```sh
 # Recommended (to pull an image by providing specific tag name)
-docker pull ostai/futuopend:9.4.5418
+docker pull felaray/futuopend:10.3.6308
 ```
 
 Or
 
 ```sh
-docker pull ostai/futuopend:latest
+docker pull felaray/futuopend:latest
 ```
 
 ## Lastest FutuOpenD Image Version
 
+- 10.3.6308_Ubuntu18.04
 - 9.4.5418_Ubuntu16.04
 - 9.4.5408_Ubuntu16.04
 - 9.3.5308_Ubuntu16.04
 - 9.2.5208_Ubuntu16.04
 
-[Other versions](https://hub.docker.com/r/ostai/futuopend/tags)
+[Other versions](https://hub.docker.com/r/felaray/futuopend/tags)
 
 ## Usage
 
@@ -69,7 +69,7 @@ docker run \
 -p 11111:11111 \
 -e "FUTU_LOGIN_ACCOUNT=$your_futu_id" \
 -e "FUTU_LOGIN_PWD_MD5=$your_password_md5" \
-ostai/futuopend:latest
+felaray/futuopend:latest
 ```
 
 ### WebSocket Server
@@ -204,12 +204,12 @@ const kill = startMockServer({
 ## How to build your own image
 
 ```sh
-export VERSION=9.2.5208
-export FUTU_VERSION=${VERSION}_Ubuntu16.04
+export VERSION=10.3.6308
+export FUTU_VERSION=${VERSION}_Ubuntu18.04
 ```
 
 ```sh
-TAG=ostai/futuopend
+TAG=felaray/futuopend
 
 
 docker build -t $TAG:$VERSION \
@@ -220,7 +220,7 @@ docker build -t $TAG:$VERSION \
 For example:
 
 ```sh
-docker build -t ostai/futuopend:${VERSION} \
+docker build -t felaray/futuopend:${VERSION} \
   --build-arg FUTU_VERSION=${FUTU_VERSION} \
   .
 ```

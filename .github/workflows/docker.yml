@@ -13,7 +13,7 @@ jobs:
         node-version: [22.x]
     runs-on: ${{ matrix.os }}
     env:
-      FUTU_VERSION: 9.4.5418
+      FUTU_VERSION: 10.3.6308
 
     steps:
       # Checkout the repository
@@ -30,12 +30,6 @@ jobs:
           npm run report:coverage
         env:
           CI: true
-
-      - name: Upload results to Codecov
-        if: runner.os == 'Linux'
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       # Set up QEMU for multi-platform builds
       - name: Set up QEMU
@@ -70,11 +64,11 @@ jobs:
           context: .
           push: true
           tags: |
-            ostai/futuopend:${{ env.FUTU_VERSION }}
-            ostai/futuopend:latest
+            felaray/futuopend:${{ env.FUTU_VERSION }}
+            felaray/futuopend:latest
           platforms: linux/amd64
           build-args: |
-            FUTU_VERSION=${{ env.FUTU_VERSION }}_Ubuntu16.04
+            FUTU_VERSION=${{ env.FUTU_VERSION }}_Ubuntu18.04
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
       # Move cache for future builds

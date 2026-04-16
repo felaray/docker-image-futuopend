@@ -1,6 +1,6 @@
 .PHONY: build
 
-export FUTU_VERSION=9.2.5208
+export FUTU_VERSION=10.3.6308
 
 # FutuOpenD could only be built as linux/amd64, or there will be an issue:
 # Issue on Apple Silicon
@@ -8,8 +8,8 @@ export FUTU_VERSION=9.2.5208
 build:
 	DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build \
 		--progress=plain \
-		-t ostai/futuopend:$(FUTU_VERSION) \
-  		--build-arg FUTU_VERSION=$(FUTU_VERSION)_Ubuntu16.04 \
+		-t felaray/futuopend:$(FUTU_VERSION) \
+  		--build-arg FUTU_VERSION=$(FUTU_VERSION)_Ubuntu18.04 \
 		.
 
 debug:
@@ -22,13 +22,13 @@ debug:
 		-e "FUTU_LOGIN_PWD_MD5=$(FUTU_LOGIN_PWD_MD5)" \
 		-e "FUTU_LOG_LEVEL=$(FUTU_LOG_LEVEL)" \
 		-e "SERVER_PORT=8083" \
-		ostai/futuopend:$(FUTU_VERSION)
+		felaray/futuopend:$(FUTU_VERSION)
 
 
 push:
-	docker tag ostai/futuopend:$(FUTU_VERSION) ostai/futuopend:latest
-	docker push ostai/futuopend:$(FUTU_VERSION)
-	docker push ostai/futuopend:latest
+	docker tag felaray/futuopend:$(FUTU_VERSION) felaray/futuopend:latest
+	docker push felaray/futuopend:$(FUTU_VERSION)
+	docker push felaray/futuopend:latest
 
 
 .PHONY: build debug push

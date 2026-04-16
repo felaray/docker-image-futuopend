@@ -1,9 +1,8 @@
 [English Version](./README.en.md)
 
-# Docker Image 镜像: ostai/FutuOpenD
+# Docker Image 镜像: felaray/FutuOpenD
 
 [![Build Status](https://github.com/kaelzhang/docker-image-futuopend/actions/workflows/docker.yml/badge.svg)](https://github.com/kaelzhang/docker-image-futuopend/actions/workflows/docker.yml)
-[![Coverage](https://codecov.io/gh/kaelzhang/docker-image-futuopend/branch/master/graph/badge.svg)](https://codecov.io/gh/kaelzhang/docker-image-futuopend)
 
 真正可用的 FutuOpenD docker 镜像。
 
@@ -18,23 +17,24 @@
 ## 安装
 
 ```sh
-docker pull ostai/futuopend:latest
+docker pull felaray/futuopend:latest
 ```
 
 或者
 
 ```sh
-docker pull ostai/futuopend:9.4.5418
+docker pull felaray/futuopend:10.3.6308
 ```
 
 ## 最新支持的 FutuOpenD 镜像版本
 
+- 10.3.6308_Ubuntu18.04
 - 9.4.5418_Ubuntu16.04
 - 9.4.5408_Ubuntu16.04
 - 9.3.5308_Ubuntu16.04
 - 9.2.5208_Ubuntu16.04
 
-[其他版本](https://hub.docker.com/r/ostai/futuopend/tags)
+[其他版本](https://hub.docker.com/r/felaray/futuopend/tags)
 
 ## 用法
 
@@ -60,7 +60,7 @@ docker run \
 -p 11111:11111 \
 -e "FUTU_LOGIN_ACCOUNT=$your_futu_id" \
 -e "FUTU_LOGIN_PWD_MD5=$your_password_md5" \
-ostai/futuopend:latest
+felaray/futuopend:latest
 ```
 
 ### WebSocket 服务器
@@ -163,12 +163,12 @@ ws.on('open', () => {
 ## 如何构建你自己的镜像
 
 ```sh
-export VERSION=9.2.5208
-export FUTU_VERSION=${VERSION}_Ubuntu16.04
+export VERSION=10.3.6308
+export FUTU_VERSION=${VERSION}_Ubuntu18.04
 ```
 
 ```sh
-TAG=ostai/futuopend
+TAG=felaray/futuopend
 
 
 docker build -t $TAG:$VERSION \
@@ -179,7 +179,7 @@ docker build -t $TAG:$VERSION \
 例如:
 
 ```sh
-docker build -t ostai/futuopend:${VERSION} \
+docker build -t felaray/futuopend:${VERSION} \
   --build-arg FUTU_VERSION=${FUTU_VERSION} \
   .
 ```
