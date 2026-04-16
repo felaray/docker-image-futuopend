@@ -46,7 +46,8 @@ ARG PYTHON_SHORT_VERSION=3.8
 WORKDIR /usr/src
 
 # Download and extract Python source
-RUN wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz \
+RUN curl -fsSLo Python-${PYTHON_VERSION}.tgz --retry 5 --retry-delay 5 --retry-connrefused \
+    https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz \
 && tar xzf Python-${PYTHON_VERSION}.tgz \
 && rm Python-${PYTHON_VERSION}.tgz
 
