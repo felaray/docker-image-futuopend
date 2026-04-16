@@ -29,8 +29,13 @@ RUN apt-get -o Acquire::Retries=5 update \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSLo /tmp/node.tar.xz --retry 5 --retry-delay 5 --retry-connrefused \
-        "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${NODE_DISTRO}.tar.xz" \
+RUN set -eux; \
+    node_url="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${NODE_DISTRO}.tar.xz"; \
+    for attempt in 1 2 3 4 5; do \
+        curl -fsSLo /tmp/node.tar.xz "$node_url" && break; \
+        test "$attempt" -lt 5; \
+        sleep 5; \
+    done \
     && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm -f /tmp/node.tar.xz
@@ -46,8 +51,13 @@ ARG PYTHON_SHORT_VERSION=3.8
 WORKDIR /usr/src
 
 # Download and extract Python source
-RUN curl -fsSLo Python-${PYTHON_VERSION}.tgz --retry 5 --retry-delay 5 --retry-connrefused \
-    https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz \
+RUN set -eux; \
+    python_url="https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz"; \
+    for attempt in 1 2 3 4 5; do \
+        curl -fsSLo Python-${PYTHON_VERSION}.tgz "$python_url" && break; \
+        test "$attempt" -lt 5; \
+        sleep 5; \
+    done \
 && tar xzf Python-${PYTHON_VERSION}.tgz \
 && rm Python-${PYTHON_VERSION}.tgz
 
