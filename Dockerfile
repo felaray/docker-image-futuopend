@@ -1,7 +1,7 @@
 # https://softwaredownload.futunn.com/Futu_OpenD_10.3.6308_Ubuntu18.04.tar.gz
 
 # ==============================================================================
-# Stage 1: Build Python from Source
+# Stage 1: Build application dependencies
 # ==============================================================================
 FROM ubuntu:18.04 AS builder
 
@@ -24,6 +24,8 @@ RUN apt-get -o Acquire::Retries=5 update \
     libsqlite3-dev \
     libssl-dev \
     libtk8.6 \
+    python3 \
+    python3-distutils \
     wget \
     xz-utils \
     zlib1g-dev \
@@ -33,53 +35,18 @@ RUN set -eux; \
     node_url="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${NODE_DISTRO}.tar.xz"; \
     for attempt in 1 2 3 4 5; do \
         curl -fsSLo /tmp/node.tar.xz "$node_url" && break; \
-        test "$attempt" -lt 5; \
+        if [ "$attempt" -eq 5 ]; then exit 1; fi; \
         sleep 5; \
     done \
     && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm -f /tmp/node.tar.xz
 
-ARG PYTHON_VERSION=3.8.20
-ARG PYTHON_SHORT_VERSION=3.8
-
-# Install Python
-# ------------------------------------------------------------------------------
-
-# Python is required to build node-gyp
-
 WORKDIR /usr/src
 
-# Download and extract Python source
-RUN set -eux; \
-    python_url="https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz"; \
-    for attempt in 1 2 3 4 5; do \
-        curl -fsSLo Python-${PYTHON_VERSION}.tgz "$python_url" && break; \
-        test "$attempt" -lt 5; \
-        sleep 5; \
-    done \
-&& tar xzf Python-${PYTHON_VERSION}.tgz \
-&& rm Python-${PYTHON_VERSION}.tgz
+RUN python3 --version
 
-# Compile and install Python
-WORKDIR /usr/src/Python-${PYTHON_VERSION}
-
-RUN ./configure --enable-optimizations \
-&& make -j "$(nproc)" \
-&& make altinstall
-
-# Create symbolic links for python and python3
-RUN ln -s /usr/local/bin/python${PYTHON_SHORT_VERSION} /usr/local/bin/python3 \
-&& ln -s /usr/local/bin/python${PYTHON_SHORT_VERSION} /usr/local/bin/python
-
-# Verify python installation
-RUN python --version && python3 --version
-
-ENV PYTHON=/usr/local/bin/python${PYTHON_SHORT_VERSION}
-
-# /end install python ----------------------------------------------------------
-
-WORKDIR /usr/src
+ENV PYTHON=/usr/bin/python3
 
 COPY package*.json ./
 
@@ -107,7 +74,12 @@ COPY --from=builder /usr/local/bin/npx /usr/local/bin/npx
 COPY --from=builder /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 RUN set -eux; \
-wget --tries=5 --waitretry=5 --retry-connrefused -O Futu_OpenD.tar.gz https://softwaredownload.futunn.com/Futu_OpenD_$FUTU_VERSION.tar.gz; \
+futu_url="https://softwaredownload.futunn.com/Futu_OpenD_$FUTU_VERSION.tar.gz"; \
+for attempt in 1 2 3 4 5; do \
+    wget -O Futu_OpenD.tar.gz "$futu_url" && break; \
+    if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+    sleep 5; \
+done; \
 tar -xf Futu_OpenD.tar.gz; \
 mkdir bin; \
 archive_dir="$(find . -type f -name FutuOpenD -exec dirname {} \; | head -n 1)"; \
