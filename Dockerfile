@@ -1,70 +1,52 @@
 # https://softwaredownload.futunn.com/Futu_OpenD_10.3.6308_Ubuntu18.04.tar.gz
 
 # ==============================================================================
-# Stage 1: Build Python from Source
+# Stage 1: Build application dependencies
 # ==============================================================================
 FROM ubuntu:18.04 AS builder
 
 # Set non-interactive mode for apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install Node.js 16
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-    && apt-get install -y nodejs \
+ARG NODE_VERSION=16.20.2
+ARG NODE_DISTRO=linux-x64
+ARG NODE_SHA256=874463523f26ed528634580247f403d200ba17a31adf2de98a7b124c6eb33d87
+
+RUN apt-get -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    curl \
+    libffi-dev \
+    libgdbm-dev \
+    libncurses5-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libssl-dev \
+    libtk8.6 \
+    python3 \
+    python3-distutils \
+    wget \
+    xz-utils \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-ARG PYTHON_VERSION=3.8.20
-ARG PYTHON_SHORT_VERSION=3.8
-
-# Install Python
-# ------------------------------------------------------------------------------
-
-# Python is required to build node-gyp
-
-# Install build dependencies for python
-RUN apt-get update && apt-get install -y --no-install-recommends \
-wget \
-build-essential \
-libssl-dev \
-zlib1g-dev \
-libncurses5-dev \
-libffi-dev \
-libsqlite3-dev \
-libreadline-dev \
-libtk8.6 \
-libgdbm-dev \
-ca-certificates \
-xz-utils \
-&& rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    node_url="https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${NODE_DISTRO}.tar.xz"; \
+    for attempt in 1 2 3 4 5; do \
+        curl -fsSLo /tmp/node.tar.xz "$node_url" && break; \
+        if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+        sleep 5; \
+    done \
+    && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm -f /tmp/node.tar.xz
 
 WORKDIR /usr/src
 
-# Download and extract Python source
-RUN wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz \
-&& tar xzf Python-${PYTHON_VERSION}.tgz \
-&& rm Python-${PYTHON_VERSION}.tgz
+RUN python3 --version
 
-# Compile and install Python
-WORKDIR /usr/src/Python-${PYTHON_VERSION}
-
-RUN ./configure --enable-optimizations \
-&& make -j "$(nproc)" \
-&& make altinstall
-
-# Create symbolic links for python and python3
-RUN ln -s /usr/local/bin/python${PYTHON_SHORT_VERSION} /usr/local/bin/python3 \
-&& ln -s /usr/local/bin/python${PYTHON_SHORT_VERSION} /usr/local/bin/python
-
-# Verify python installation
-RUN python --version && python3 --version
-
-ENV PYTHON=/usr/local/bin/python${PYTHON_SHORT_VERSION}
-
-# /end install python ----------------------------------------------------------
-
-WORKDIR /usr/src
+ENV PYTHON=/usr/bin/python3
 
 COPY package*.json ./
 
@@ -76,11 +58,9 @@ RUN npm i --omit=dev
 # ==============================================================================
 FROM ubuntu:18.04
 
-# Install Node.js 16, wget and ca-certificates (needed for HTTPS requests)
-RUN apt-get update \
-    && apt-get install -y curl ca-certificates wget \
-    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-    && apt-get install -y nodejs \
+# Install wget and certificates for downloading the FutuOpenD archive
+RUN apt-get -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::Retries=5 install -y --no-install-recommends ca-certificates wget \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -88,8 +68,18 @@ WORKDIR /usr/src/app
 
 ARG FUTU_VERSION=10.3.6308_Ubuntu18.04
 
+COPY --from=builder /usr/local/bin/node /usr/local/bin/node
+COPY --from=builder /usr/local/bin/npm /usr/local/bin/npm
+COPY --from=builder /usr/local/bin/npx /usr/local/bin/npx
+COPY --from=builder /usr/local/lib/node_modules /usr/local/lib/node_modules
+
 RUN set -eux; \
-wget -O Futu_OpenD.tar.gz https://softwaredownload.futunn.com/Futu_OpenD_$FUTU_VERSION.tar.gz; \
+futu_url="https://softwaredownload.futunn.com/Futu_OpenD_$FUTU_VERSION.tar.gz"; \
+for attempt in 1 2 3 4 5; do \
+    wget -O Futu_OpenD.tar.gz "$futu_url" && break; \
+    if [ "$attempt" -eq 5 ]; then exit 1; fi; \
+    sleep 5; \
+done; \
 tar -xf Futu_OpenD.tar.gz; \
 mkdir bin; \
 archive_dir="$(find . -type f -name FutuOpenD -exec dirname {} \; | head -n 1)"; \
