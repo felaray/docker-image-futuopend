@@ -92,7 +92,7 @@ RUN set -eux; \
 wget -O Futu_OpenD.tar.gz https://softwaredownload.futunn.com/Futu_OpenD_$FUTU_VERSION.tar.gz; \
 tar -xf Futu_OpenD.tar.gz; \
 mkdir bin; \
-archive_dir="$(find . -type f -name FutuOpenD -printf '%h\n' | head -n 1)"; \
+archive_dir="$(find . -type f -name FutuOpenD -exec dirname {} \; | head -n 1)"; \
 test -n "$archive_dir"; \
 cp -a "$archive_dir"/. ./bin/; \
 rm -rf Futu_OpenD.tar.gz Futu_OpenD_*; \
