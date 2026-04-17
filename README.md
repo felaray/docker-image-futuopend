@@ -1,32 +1,35 @@
-[English Version](./README.en.md)
- 
-# Docker Image 镜像: felaray/FutuOpenD
+[English Version](./README.en.md) | [简体中文版](./README.zh-CN.md)
+
+# Docker Image 鏡像: felaray/FutuOpenD
 
 [![Build Status](https://github.com/kaelzhang/docker-image-futuopend/actions/workflows/docker.yml/badge.svg)](https://github.com/kaelzhang/docker-image-futuopend/actions/workflows/docker.yml)
 
-真正可用的 FutuOpenD docker 镜像。
+真正可用的 FutuOpenD Docker 鏡像。
 
-之所以创建这个项目的原因，是因为我试过很多 FutuOpenD 的 docker 镜像，要么是根本无法运行起来，要么没有处理短信验证码，或者是需要我们手动 `docker exec` 到容器里面处理验证码，导致根本不能够运维。
+建立這個專案的原因是，我試過很多 FutuOpenD 的 Docker 鏡像：
+- 要嘛根本無法啟動
+- 要嘛沒有處理簡訊驗證碼
+- 要嘛需要手動 `docker exec` 進容器處理驗證碼，導致不利於維運
 
-容器启动后会运行：
-- 一个 FutuOpenD agent
-- 一个 websocket 服务器，用于检查 FutuOpenD agent 的就绪状态，并支持你提供短信验证码，来进行必要的初始化
+容器啟動後會執行：
+- 一個 FutuOpenD agent
+- 一個 WebSocket 伺服器，用於檢查 FutuOpenD agent 的就緒狀態，並支援你提供簡訊驗證碼以完成必要初始化
 
-该镜像始终使用 `DOCKER_DEFAULT_PLATFORM=linux/amd64` 构建（[why?](https://stackoverflow.com/questions/71040681/qemu-x86-64-could-not-open-lib64-ld-linux-x86-64-so-2-no-such-file-or-direc)）并可在 Ubuntu 和 MacOS 上运行。
+該鏡像一律使用 `DOCKER_DEFAULT_PLATFORM=linux/amd64` 建置（[why?](https://stackoverflow.com/questions/71040681/qemu-x86-64-could-not-open-lib64-ld-linux-x86-64-so-2-no-such-file-or-direc)），可在 Ubuntu 與 MacOS 上執行。
 
-## 安装
+## 安裝
 
 ```sh
 docker pull felaray/futuopend:latest
 ```
 
-或者
+或
 
 ```sh
 docker pull felaray/futuopend:10.3.6308
 ```
 
-## 最新支持的 FutuOpenD 镜像版本
+## 目前支援的 FutuOpenD 鏡像版本
 
 - 10.3.6308_Ubuntu18.04
 - 9.4.5418_Ubuntu16.04
@@ -38,19 +41,83 @@ docker pull felaray/futuopend:10.3.6308
 
 ## 用法
 
-### 环境变量
+### 環境變數
 
 - **FUTU_LOGIN_ACCOUNT** `string`（必填）
 - **FUTU_LOGIN_PWD_MD5** `string`（必填）
-- **FUTU_LANG** `string`，默认 `chs`
-- **FUTU_LOG_LEVEL** `string`，默认 `no`
-- **FUTU_IP** `string`, 默认 `"0.0.0.0"`, 不同于 FutuOpenD CMD 的默认 IP `127.0.0.1`，由于这个仓库的目的是用于 kubernetes 集群，需要让 FutuOpenD 能够接受其他容器的请求。
-- **FUTU_PORT** `integer`，FutuOpenD 的端口，默认 `11111`
-- **SERVER_PORT** `integer`，websocket 服务器的端口，默认 `8000`
-- **FUTU_INIT_ON_START** `string="yes"`，容器启动时是否初始化 Futu OpenD agent，默认 `"yes"`
-- **FUTU_SUPERVISE_PROCESS** `string="yes"` 是否需要监控 FutuOpenD 子进程，并且在退出的时候尝试重新连接。
+- **FUTU_LANG** `string`，預設 `chs`
+- **FUTU_LOG_LEVEL** `string`，預設 `no`
+- **FUTU_IP** `string`，預設 `"0.0.0.0"`。這與 FutuOpenD CLI 的預設 IP `127.0.0.1` 不同；由於本專案常用於 Kubernetes 叢集，需要讓 FutuOpenD 可以接受其他容器的請求。
+- **FUTU_PORT** `integer`，FutuOpenD 的埠號，預設 `11111`
+- **SERVER_PORT** `integer`，WebSocket 伺服器的埠號，預設 `8000`
+- **FUTU_INIT_ON_START** `string="yes"`，容器啟動時是否初始化 Futu OpenD agent，預設 `"yes"`
+- **FUTU_SUPERVISE_PROCESS** `string="yes"`，是否監控 FutuOpenD 子程序，並在退出時嘗試重新連線
 
-### Docker Run：如何启动容器
+### 產生 FUTU_LOGIN_PWD_MD5（Windows / Linux / macOS）
+
+`FUTU_LOGIN_PWD_MD5` 需要 32 位元小寫十六進位 MD5 字串（不含空白與換行）。
+
+1. 先設定明文密碼變數
+
+Windows PowerShell：
+
+```powershell
+$plain = "your_password_here"
+```
+
+Linux/macOS（bash/zsh）：
+
+```sh
+plain='your_password_here'
+```
+
+2. Windows PowerShell 5.1（內建可用）
+
+```powershell
+$bytes = [System.Text.Encoding]::UTF8.GetBytes($plain)
+$md5 = [System.Security.Cryptography.MD5]::Create()
+$hashBytes = $md5.ComputeHash($bytes)
+$pwdMd5 = ($hashBytes | ForEach-Object { $_.ToString("x2") }) -join ""
+$pwdMd5
+```
+
+3. PowerShell 7+（建議）
+
+```powershell
+$bytes = [System.Text.Encoding]::UTF8.GetBytes($plain)
+$hashBytes = [System.Security.Cryptography.MD5]::HashData($bytes)
+$pwdMd5 = ($hashBytes | ForEach-Object { $_.ToString("x2") }) -join ""
+$pwdMd5
+```
+
+4. Linux（GNU coreutils）
+
+```sh
+pwd_md5=$(printf %s "$plain" | md5sum | awk '{print $1}')
+echo "$pwd_md5"
+```
+
+5. macOS
+
+```sh
+pwd_md5=$(printf %s "$plain" | md5)
+echo "$pwd_md5"
+```
+
+6. 啟動容器時帶入環境變數（PowerShell 範例）
+
+```powershell
+docker run `
+--name FutuOpenD `
+-e "SERVER_PORT=8081" `
+-p 8081:8081 `
+-p 11111:11111 `
+-e "FUTU_LOGIN_ACCOUNT=你的富途帳號" `
+-e "FUTU_LOGIN_PWD_MD5=$pwdMd5" `
+felaray/futuopend:latest
+```
+
+### Docker Run：如何啟動容器
 
 ```sh
 docker run \
@@ -63,7 +130,7 @@ docker run \
 felaray/futuopend:latest
 ```
 
-### WebSocket 服务器
+### WebSocket 伺服器
 
 ```js
 const {WebSocket} = require('ws')
@@ -92,31 +159,33 @@ ws.on('open', () => {
     type: 'STATUS'
   }))
 
-  // 如果环境变量 FUTU_INIT_ON_START=no,
-  // 我们需要手动初始化 FutuOpenD，让它启动
+  // 如果環境變數 FUTU_INIT_ON_START=no,
+  // 需要手動初始化 FutuOpenD，讓它啟動
   ws.send(JSON.stringify({
     type: 'INIT'
   }))
 })
 ```
 
-下行和上行消息均为 JSON 格式。
+下行與上行訊息皆為 JSON 格式。
 
-#### 下行消息：服务器 -> 客户端
+#### 下行訊息：伺服器 -> 客戶端
 
 ```json
 {
   "type": "REQUEST_CODE"
 }
 ```
-表示 FutuOpenD agent 需要你提供短信验证码
+
+表示 FutuOpenD agent 需要你提供簡訊驗證碼。
 
 ```json
 {
   "type": "CONNECTED"
 }
 ```
-表示 FutuOpenD agent 已连接
+
+表示 FutuOpenD agent 已連線。
 
 ```json
 {
@@ -124,7 +193,8 @@ ws.on('open', () => {
   "status": -1
 }
 ```
-服务器返回当前状态。
+
+伺服器回傳目前狀態。
 
 ```json
 {
@@ -132,23 +202,25 @@ ws.on('open', () => {
 }
 ```
 
-表示 FutuOpenD 子进行（意外）退出
+表示 FutuOpenD 子程序（意外）退出。
 
-#### 上行消息：客户端 -> 服务器
+#### 上行訊息：客戶端 -> 伺服器
 
 ```json
 {
   "type": "INIT"
 }
 ```
-告诉服务器初始化 FutuOpenD agent，仅在环境变量 `FUTU_INIT_ON_START` 设置为 `'no'` 时有效
+
+告訴伺服器初始化 FutuOpenD agent，僅在環境變數 `FUTU_INIT_ON_START` 設為 `'no'` 時有效。
 
 ```json
 {
   "type": "STATUS"
 }
 ```
-请求服务器返回当前状态
+
+請求伺服器回傳目前狀態。
 
 ```json
 {
@@ -156,11 +228,37 @@ ws.on('open', () => {
   "code": "123456"
 }
 ```
-向 FutuOpenD agent 提交短信验证码
 
-# 贡献者指南
+向 FutuOpenD agent 提交簡訊驗證碼。
 
-## 如何构建你自己的镜像
+# @ostai/futuopend
+
+## 安裝
+
+```sh
+npm i @ostai/futuopend
+```
+
+## 用法
+
+```js
+const {
+  // 連線到 WebSocket 伺服器的 client manager
+  FutuOpenDManager,
+  // WebSocket 伺服器的狀態列舉
+  STATUS,
+  // 啟動帶有 mocked FutuOpenD 的測試伺服器
+  startMockServer
+} = require('@ostai/futuopend')
+
+const kill = startMockServer({
+  port
+})
+```
+
+# 貢獻者指南
+
+## 如何建置你自己的鏡像
 
 ```sh
 export VERSION=10.3.6308
@@ -176,7 +274,7 @@ docker build -t $TAG:$VERSION \
   .
 ```
 
-例如:
+例如：
 
 ```sh
 docker build -t felaray/futuopend:${VERSION} \

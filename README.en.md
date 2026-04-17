@@ -1,4 +1,4 @@
-[中文版](https://github.com/kaelzhang/docker-image-futuopend)
+[繁體中文版](./README.md) | [简体中文版](./README.zh-CN.md)
 
 # Docker Image: felaray/FutuOpenD
 
@@ -58,6 +58,57 @@ docker pull felaray/futuopend:latest
 - **SERVER_PORT** `integer` the port of the websocket server, defaults to `8000`
 - **FUTU_INIT_ON_START** `string="yes"` whether it will initialize the Futu OpenD agent on the start, defaults to `"yes"`
 - **FUTU_SUPERVISE_PROCESS** `string="yes"` whether it will supervise the FutuOpenD process
+
+### Generate FUTU_LOGIN_PWD_MD5 (Windows / Linux / macOS)
+
+`FUTU_LOGIN_PWD_MD5` must be a 32-character lowercase hex MD5 string (without spaces or newlines).
+
+1. Set a plaintext password variable first.
+
+Windows PowerShell:
+
+```powershell
+$plain = "your_password_here"
+```
+
+Linux/macOS (bash/zsh):
+
+```sh
+plain='your_password_here'
+```
+
+2. Windows PowerShell 5.1
+
+```powershell
+$bytes = [System.Text.Encoding]::UTF8.GetBytes($plain)
+$md5 = [System.Security.Cryptography.MD5]::Create()
+$hashBytes = $md5.ComputeHash($bytes)
+$pwdMd5 = ($hashBytes | ForEach-Object { $_.ToString("x2") }) -join ""
+$pwdMd5
+```
+
+3. PowerShell 7+
+
+```powershell
+$bytes = [System.Text.Encoding]::UTF8.GetBytes($plain)
+$hashBytes = [System.Security.Cryptography.MD5]::HashData($bytes)
+$pwdMd5 = ($hashBytes | ForEach-Object { $_.ToString("x2") }) -join ""
+$pwdMd5
+```
+
+4. Linux (GNU coreutils)
+
+```sh
+pwd_md5=$(printf %s "$plain" | md5sum | awk '{print $1}')
+echo "$pwd_md5"
+```
+
+5. macOS
+
+```sh
+pwd_md5=$(printf %s "$plain" | md5)
+echo "$pwd_md5"
+```
 
 ### Docker Run: How to start the container
 
