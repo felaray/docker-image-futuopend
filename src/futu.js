@@ -1,10 +1,59 @@
-const {WebSocketServer} = require('ws')
+const {createServer} = require('node:http')
 const pty = require('node-pty')
 
 const {
   STATUS,
+  statusText,
   OutputManager
 } = require('./common')
+
+
+const createDeferred = () => {
+  let resolve
+
+  const promise = new Promise(r => {
+    resolve = r
+  })
+
+  return {
+    promise,
+    resolve
+  }
+}
+
+const readJsonBody = req => new Promise((resolve, reject) => {
+  let raw = ''
+
+  req.setEncoding('utf8')
+
+  req.on('data', chunk => {
+    raw += chunk
+  })
+
+  req.on('end', () => {
+    if (!raw) {
+      resolve(null)
+      return
+    }
+
+    try {
+      resolve(JSON.parse(raw))
+    } catch (err) {
+      reject(new Error(`Invalid JSON body: ${err.message}`))
+    }
+  })
+
+  req.on('error', reject)
+})
+
+const sendJson = (res, statusCode, payload) => {
+  const body = JSON.stringify(payload)
+
+  res.statusCode = statusCode
+  res.setHeader('content-type', 'application/json; charset=utf-8')
+  res.setHeader('content-length', Buffer.byteLength(body))
+  res.end(body)
+}
 
 
 class FutuManager {
@@ -19,13 +68,12 @@ class FutuManager {
   #supervise
   #retry
   #should_log
-  #ws
-  #clients
-  #ready_to_receive_code
-  #resolveReadyToReceiveCode
+  #server
   #child
   #code
   #output
+  #ready_to_receive_code
+  #resolveReadyToReceiveCode
 
   constructor (cmd, {
     login_account,
@@ -59,55 +107,19 @@ class FutuManager {
 
     this.#should_log = log_level !== 'no'
 
-    this.#ws = new WebSocketServer({port: server_port}, () => {
-      this.#log(`WebSocket server is listening on port ${server_port}`)
+    this.#server = createServer((req, res) => {
+      this.#handleRequest(req, res).catch(err => {
+        this.#error('HTTP server error:', err)
+        if (!res.writableEnded) {
+          sendJson(res, 500, {
+            error: 'Internal server error'
+          })
+        }
+      })
     })
 
-    this.#clients = []
-
-    this.#ws.on('connection', ws => {
-      if (this.#status === STATUS.REQUESTING_VERIFICATION_CODE) {
-        this.#send({
-          type: 'REQUEST_CODE'
-        }, [ws])
-      }
-
-      if (this.#status === STATUS.CONNECTED) {
-        this.#send({
-          type: 'CONNECTED'
-        }, [ws])
-      }
-
-      this.#clients.push(ws)
-      ws.on('error', err => {
-        this.#error('ws error:', err)
-      })
-
-      ws.on('message', msg => {
-        const payload = JSON.parse(msg)
-        const {
-          type,
-          code
-        } = payload
-
-        if (type === 'VERIFY_CODE') {
-          this.verify_code(code)
-          return
-        }
-
-        if (type === 'INIT') {
-          this.#init()
-          return
-        }
-
-        if (type === 'STATUS') {
-          this.#send({
-            type: 'STATUS',
-            status: this.#status
-          }, [ws])
-          return
-        }
-      })
+    this.#server.listen(server_port, () => {
+      this.#log(`REST API server is listening on port ${server_port}`)
     })
 
     this.#reset_ready_to_receive_code()
@@ -130,9 +142,75 @@ class FutuManager {
   }
 
   #reset_ready_to_receive_code() {
-    this.#ready_to_receive_code = new Promise((resolve, reject) => {
-      this.#resolveReadyToReceiveCode = resolve
+    const {promise, resolve} = createDeferred()
+    this.#ready_to_receive_code = promise
+    this.#resolveReadyToReceiveCode = resolve
+  }
+
+  async #handleRequest(req, res) {
+    const url = new URL(req.url, 'http://127.0.0.1')
+
+    if (req.method === 'GET' && url.pathname === '/') {
+      sendJson(res, 200, this.#statusResponse())
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/status') {
+      sendJson(res, 200, this.#statusResponse())
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/init') {
+      this.#init()
+      sendJson(res, 202, {
+        ok: true,
+        ...this.#statusResponse()
+      })
+      return
+    }
+
+    if (
+      req.method === 'POST'
+      && (url.pathname === '/verification-code' || url.pathname === '/verify-code')
+    ) {
+      let payload
+
+      try {
+        payload = await readJsonBody(req)
+      } catch (err) {
+        sendJson(res, 400, {
+          error: err.message
+        })
+        return
+      }
+
+      const code = payload && payload.code
+
+      if (typeof code !== 'string' || !code.trim()) {
+        sendJson(res, 400, {
+          error: 'Missing verification code'
+        })
+        return
+      }
+
+      this.verify_code(code)
+      sendJson(res, 202, {
+        ok: true,
+        ...this.#statusResponse()
+      })
+      return
+    }
+
+    sendJson(res, 404, {
+      error: 'Not found'
     })
+  }
+
+  #statusResponse() {
+    return {
+      status: this.#status,
+      state: statusText(this.#status)
+    }
   }
 
   #init() {
@@ -180,18 +258,17 @@ class FutuManager {
       this.#output.add(chunk)
 
       if (this.#output.includes('req_phone_verify_code')) {
-        this.#send({
-          type: 'REQUEST_CODE'
-        })
         this.#status = STATUS.REQUESTING_VERIFICATION_CODE
         this.#resolveReadyToReceiveCode()
+
+        if (this.#code) {
+          this.#set_verify_code()
+        }
+
         return
       }
 
       if (this.#output.includes('Login successful')) {
-        this.#send({
-          type: 'CONNECTED'
-        })
         this.#status = STATUS.CONNECTED
         this.#output.close()
       }
@@ -201,7 +278,7 @@ class FutuManager {
       this.#error('FutuOpenD error:', err)
     })
 
-    this.#child.on('exit', (code, signal) => {
+    this.#child.on('exit', () => {
       this.#error('FutuOpenD exited')
     })
 
@@ -209,28 +286,12 @@ class FutuManager {
       this.#log('FutuOpenD closed')
 
       this.#status = STATUS.CLOSED
-      this.#send({
-        type: 'CLOSED'
-      })
-
       this.#reset_ready_to_receive_code()
 
       if (this.#supervise) {
         this.#retry++
         this.#init()
       }
-    })
-  }
-
-  // Send msg to specific clients or all clients
-  #send(msg, clients) {
-    if (msg.type === 'REQUEST_CODE' && this.#code) {
-      // Already has a code
-      return
-    }
-
-    (clients || this.#clients).forEach(client => {
-      client.send(JSON.stringify(msg))
     })
   }
 
@@ -269,6 +330,6 @@ class FutuManager {
 
 
 module.exports = {
-  FutuManager,
-  STATUS
+  STATUS,
+  FutuManager
 }

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## Unreleased
+
+### Changed
+- Replaced the container control channel with a REST API for status checks, initialization, and SMS verification code submission
+
+---
+
 ## [10.3.6308] - 2026-04-16
 
 ### Changed

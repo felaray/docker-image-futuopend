@@ -3,7 +3,8 @@ name: Build
 on:
   push:
     branches:
-      - master  # Trigger on push to the main branch
+      - master
+      - dev
 
 jobs:
   build:
@@ -31,31 +32,21 @@ jobs:
         env:
           CI: true
 
-      - name: Check docker-related changes
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            docker:
-              - 'Dockerfile'
-              - '.dockerignore'
-              - '.github/workflows/docker.yml'
-
       # Set up QEMU for multi-platform builds
       - name: Set up QEMU
-        if: steps.changes.outputs.docker == 'true'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
         uses: docker/setup-qemu-action@v2
         with:
           platforms: all
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
-        if: steps.changes.outputs.docker == 'true'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
         uses: docker/setup-buildx-action@v3
 
       # Log in to Docker Hub using Access Token
       - name: Log in to Docker Hub
-        if: steps.changes.outputs.docker == 'true'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -63,7 +54,7 @@ jobs:
 
       # Cache Docker layers (optional but recommended for faster builds)
       - name: Cache Docker layers
-        if: steps.changes.outputs.docker == 'true'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
         uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
@@ -71,9 +62,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # Build and push Docker images for multiple platforms
-      - name: Build and push Docker image
-        if: steps.changes.outputs.docker == 'true'
+      # Build and push Docker image for master
+      - name: Build and push Docker image (master)
+        if: github.ref == 'refs/heads/master'
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -86,13 +77,29 @@ jobs:
             FUTU_VERSION=${{ env.FUTU_VERSION }}_Ubuntu18.04
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      # Build and push Docker image for dev
+      - name: Build and push Docker image (dev)
+        if: github.ref == 'refs/heads/dev'
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            felaray/futuopend:${{ env.FUTU_VERSION }}-dev
+            felaray/futuopend:dev-latest
+          platforms: linux/amd64
+          build-args: |
+            FUTU_VERSION=${{ env.FUTU_VERSION }}_Ubuntu18.04
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
       # Move cache for future builds
       - name: Move cache
-        if: steps.changes.outputs.docker == 'true' && always()
+        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev') && always()
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      - name: Skip docker build (no docker-related changes)
-        if: steps.changes.outputs.docker != 'true'
-        run: echo "No Dockerfile-related changes detected. Skip Docker image build/push."
+      - name: Skip docker build (non-target branch)
+        if: github.ref != 'refs/heads/master' && github.ref != 'refs/heads/dev'
+        run: echo "No Docker image build/push configured for this branch."

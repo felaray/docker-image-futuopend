@@ -1,10 +1,9 @@
 const log = require('node:util').debuglog('futuopend')
 const findFreePorts = require('find-free-ports')
-const {WebSocket} = require('ws')
+const {setTimeout} = require('node:timers/promises')
 
 const {
-  STATUS,
-  KEY_GETTER
+  STATUS
 } = require('../src/common')
 
 const {
@@ -18,40 +17,44 @@ const {
 require('./shim')
 
 
-class WSTester extends FutuOpenDManager {
+class HttpTester extends FutuOpenDManager {
   constructor (n, {
     port,
     t,
-    onRequestCode,
-    onConnected,
     checkStatus = STATUS.ORIGIN,
-    sendCode = true,
-    firstMessageType,
     ...options
   }) {
-    super(`ws://localhost:${port}`, options)
+    super(`http://localhost:${port}`, options)
 
     this._n = n
     this._t = t
-    this._onRequestCode = onRequestCode
-    this._onConnected = onConnected
     this._checkStatus = checkStatus
-    this._sendCode = sendCode
-    this._firstMessageType = firstMessageType
-  }
-
-  async equal (...args) {
-    const data = await this[KEY_GETTER].get()
-
-    this._t.deepEqual(data, ...args)
-  }
-
-  reset () {
-    this[KEY_GETTER].reset()
   }
 
   _log (...msg) {
     log(`[${this._n}]`, ...msg)
+  }
+
+  async waitForStatus (expected, {
+    timeout = 5000,
+    interval = 100
+  } = {}) {
+    const expectedList = Array.isArray(expected) ? expected : [expected]
+    const started = Date.now()
+
+    while (Date.now() - started < timeout) {
+      const current = await this.status()
+
+      if (expectedList.includes(current)) {
+        return current
+      }
+
+      await setTimeout(interval)
+    }
+
+    throw new Error(
+      `Timed out waiting for status ${expectedList.join(', ')}; last status = ${await this.status()}`
+    )
   }
 
   async init () {
@@ -59,66 +62,17 @@ class WSTester extends FutuOpenDManager {
       this._t.is(await this.status(), this._checkStatus)
     }
 
-    super.init()
+    await super.init()
   }
 
   async test () {
-    const doInit = async n => {
-      this._log('round 1 ...')
+    this._log('polling status ...')
 
-      if (
-        !this._firstMessageType
-        || this._firstMessageType === 'REQUEST_CODE'
-        || n > 1
-      ) {
-        await this.equal({
-          type: 'REQUEST_CODE'
-        }, `REQUEST_CODE ${this._n}.${n}`)
-      }
-
-      if (this._onRequestCode) {
-        await this._onRequestCode()
-        this._onRequestCode = null
-      }
-
-      if (this._sendCode) {
-        this.sendCode('12345')
-      }
-
-      if (
-        !this._firstMessageType
-        || this._firstMessageType === 'CONNECTED'
-        || this._firstMessageType === 'REQUEST_CODE'
-        || n > 1
-      ) {
-        await this.equal({
-          type: 'CONNECTED'
-        }, `CONNECTED ${this._n}.${n}`)
-      }
-
-      if (this._onConnected) {
-        await this._onConnected()
-        this._onConnected = null
-      }
-    }
-
-    await doInit(1)
-
-    this._log('closed 1 ...')
-
-    await this.equal({
-      type: 'CLOSED'
-    }, `CLOSED ${this._n}.1`)
-
-    await doInit(2)
-
-    this._log('closed 2 ...')
-
-    await this.equal({
-      type: 'CLOSED'
-    }, `CLOSED ${this._n}.2`)
-
-    await doInit(3)
+    await this.waitForStatus([
+      STATUS.INIT,
+      STATUS.REQUESTING_VERIFICATION_CODE,
+      STATUS.CONNECTED
+    ])
   }
 }
 
@@ -139,7 +93,7 @@ const startServer = async options => {
 
 
 module.exports = {
-  WSTester,
+  HttpTester,
   startServer,
   log
 }

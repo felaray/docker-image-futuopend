@@ -11,8 +11,8 @@
     "src"
   ],
   "scripts": {
-    "test": "NODE_DEBUG=futuopend NODE_OPTIONS=--trace-warnings nyc ava --timeout=10s --verbose",
-    "start": "node start.js",
+    "test": "node --trace-warnings ./node_modules/nyc/bin/nyc.js ./node_modules/ava/entrypoints/cli.mjs --timeout=10s --verbose",
+    "start": "node src/start.js",
     "report:coverage": "nyc report --reporter=text-lcov > coverage.lcov"
   },
   "ava": {

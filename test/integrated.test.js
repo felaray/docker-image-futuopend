@@ -3,7 +3,7 @@ const {join} = require('node:path')
 const {setTimeout} = require('node:timers/promises')
 
 const {
-  WSTester,
+  HttpTester,
   startServer,
   log
 } = require('./common')
@@ -23,61 +23,36 @@ test.serial('start integrated test', async t => {
 
   log('start integrated test', port)
 
-  const testers = []
-
-  const {
-    promise: testerPromise,
-    resolve: testerResolve
-  } = Promise.withResolvers()
-
-  const tester1 = new WSTester(1, {
+  const tester1 = new HttpTester(1, {
     port,
-    t,
-    onRequestCode: async () => {
-      log('onRequestCode')
-
-      const tester2 = new WSTester(2, {
-        port,
-        t,
-        checkStatus: false,
-        sendCode: false,
-        firstMessageType: 'REQUEST_CODE'
-      })
-
-      await tester2.ready()
-      await tester2.init()
-
-      testers.push(tester2.test())
-    },
-    onConnected: async () => {
-      log('onConnected')
-
-      const tester3 = new WSTester(3, {
-        port,
-        t,
-        checkStatus: false,
-        sendCode: false,
-        firstMessageType: 'CONNECTED'
-      })
-
-      await tester3.ready()
-      await tester3.init()
-
-      testers.push(tester3.test())
-      testerResolve()
-    }
+    t
   })
 
   await tester1.ready()
   await tester1.init()
-  testers.push(tester1.test())
 
-  await testerPromise
+  await tester1.waitForStatus(STATUS.REQUESTING_VERIFICATION_CODE)
 
-  await Promise.all(testers)
+  const tester2 = new HttpTester(2, {
+    port,
+    t,
+    checkStatus: false
+  })
 
-  tester1.sendCode('12345')
-  await setTimeout(100)
+  await tester2.ready()
+  t.is(await tester2.status(), STATUS.REQUESTING_VERIFICATION_CODE)
+
+  await tester1.sendCode('12345')
+  await tester1.waitForStatus(STATUS.CONNECTED)
+
+  const tester3 = new HttpTester(3, {
+    port,
+    t,
+    checkStatus: false
+  })
+
+  await tester3.ready()
+  t.is(await tester3.status(), STATUS.CONNECTED)
 
   kill()
 })
@@ -91,21 +66,18 @@ test.serial('send verify code before init', async t => {
     initRetry: 2
   })
 
-  const tester = new WSTester(1, {
+  const tester = new HttpTester(1, {
     port,
     t,
-    sendCode: false
   })
 
   await tester.ready()
 
-  tester.sendCode('12345')
+  await tester.sendCode('12345')
 
   await tester.init()
 
-  await tester.equal({
-    type: 'CONNECTED'
-  })
+  await tester.waitForStatus(STATUS.CONNECTED)
 
   kill()
 })
@@ -122,17 +94,24 @@ test.serial('auto init', async t => {
     }
   })
 
-  const tester = new WSTester(1, {
+  const tester = new HttpTester(1, {
     port,
     t,
-    terminateAfterIdle: 800
   })
 
   await tester.ready()
-  t.is(await tester.status(), STATUS.INIT)
+  await tester.waitForStatus([
+    STATUS.INIT,
+    STATUS.REQUESTING_VERIFICATION_CODE
+  ])
 
   await setTimeout(1500)
   await tester.ready()
+  t.true([
+    STATUS.INIT,
+    STATUS.REQUESTING_VERIFICATION_CODE,
+    STATUS.CONNECTED
+  ].includes(await tester.status()))
 
   kill()
 })
@@ -150,7 +129,7 @@ test.serial('spawn failed', async t => {
     }
   })
 
-  const tester = new WSTester(1, {
+  const tester = new HttpTester(1, {
     port,
     t
   })
@@ -158,9 +137,7 @@ test.serial('spawn failed', async t => {
   await tester.ready()
   await tester.init()
 
-  await tester.equal({
-    type: 'CLOSED'
-  })
+  await tester.waitForStatus(STATUS.CLOSED)
 
   kill()
 })

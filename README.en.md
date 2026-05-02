@@ -9,7 +9,7 @@ Docker image for FutuOpenD on Ubuntu, the one that really works and could handle
 
 The container will start
 - A FutuOpenD agent
-- A websocket server which could help to check the ready status of the FutuOpenD agent and make it possible for you to provide SMS verfication code.
+- A REST API server which could help to check the ready status of the FutuOpenD agent and make it possible for you to submit an SMS verification code.
 
 The image is always built with `DOCKER_DEFAULT_PLATFORM=linux/amd64` ([why?](https://stackoverflow.com/questions/71040681/qemu-x86-64-could-not-open-lib64-ld-linux-x86-64-so-2-no-such-file-or-direc)) and could be `docker-run` on both Ubuntu and MacOS.
 
@@ -55,7 +55,7 @@ docker pull felaray/futuopend:latest
   - `"info"` less detailed
 - **FUTU_IP** `string` defaults to `"0.0.0.0"`, different from the default ip binding address of the FutuOpenD cli, so that it could accept connections from other containers.
 - **FUTU_PORT** `integer` the port of the FutuOpenD, defaults to `11111`
-- **SERVER_PORT** `integer` the port of the websocket server, defaults to `8000`
+- **SERVER_PORT** `integer` the port of the REST API server, defaults to `8000`
 - **FUTU_INIT_ON_START** `string="yes"` whether it will initialize the Futu OpenD agent on the start, defaults to `"yes"`
 - **FUTU_SUPERVISE_PROCESS** `string="yes"` whether it will supervise the FutuOpenD process
 
@@ -123,105 +123,52 @@ docker run \
 felaray/futuopend:latest
 ```
 
-### WebSocket Server
+### REST API Server
+
+```sh
+curl http://localhost:8081/status
+```
+
+Example response:
+
+```json
+{
+  "status": 1,
+  "state": "REQUESTING_VERIFICATION_CODE"
+}
+```
+
+Initialize the FutuOpenD agent:
+
+```sh
+curl -X POST http://localhost:8081/init
+```
+
+Submit an SMS verification code:
+
+```sh
+curl -X POST http://localhost:8081/verification-code \
+  -H "Content-Type: application/json" \
+  -d "{\"code\":\"123456\"}"
+```
+
+If you prefer Node.js:
 
 ```js
-const {WebSocket} = require('ws')
+const baseUrl = 'http://localhost:8081'
 
-const ws = new WebSocket('ws://localhost:8081')
+const status = await fetch(`${baseUrl}/status`).then(r => r.json())
+console.log(status)
 
-ws.on('message', msg => {
-  const data = JSON.parse(msg)
-
-  if (data.type === 'REQUEST_CODE') {
-    ws.send(JSON.stringify({
-      type: 'VERIFY_CODE',
-      code: '12345'
-    }))
-    return
-  }
-
-  if (data.type === 'STATUS') {
-    console.log('status:', data.status)
-    return
-  }
-})
-
-ws.on('open', () => {
-  ws.send(JSON.stringify({
-    type: 'STATUS'
-  }))
-
-  // If env FUTU_INIT_ON_START=no, we need to manually init futu
-  ws.send(JSON.stringify({
-    type: 'INIT'
-  }))
+await fetch(`${baseUrl}/init`, { method: 'POST' })
+await fetch(`${baseUrl}/verification-code`, {
+  method: 'POST',
+  headers: {
+    'content-type': 'application/json'
+  },
+  body: JSON.stringify({ code: '123456' })
 })
 ```
-
-Both downstream and upstream messages are in JSON type.
-
-#### Downstream Messages: From Server to Client
-
-```json
-{
-  "type": "REQUEST_CODE"
-}
-```
-
-which means the FutuOpenD agent requires you to provide an SMS verification code
-
-```json
-{
-  "type": "CONNECTED"
-}
-```
-
-which means the FutuOpenD agent is connected
-
-```json
-{
-  "type": "STATUS",
-  "status": -1
-}
-```
-
-The server returns the current status to you.
-
-```json
-{
-  "type": "CLOSED"
-}
-```
-
-which means the FutuOpenD agent is closed
-
-#### Upstream Messages: From Client to Server
-
-```json
-{
-  "type": "INIT"
-}
-```
-
-Tells the server to initialize the Futu OpenD agent, which only works when `FUTU_INIT_ON_START` is set to `'no'`
-
-```json
-{
-  "type": "STATUS"
-}
-```
-
-Asks the server to response the current status of the server
-
-```json
-{
-  "type": "VERIFY_CODE",
-  "code": "123456"
-}
-```
-
-Submits the SMS verification code to Futu OpenD agent.
 
 # @ostai/futuopend
 
@@ -235,9 +182,9 @@ npm i @ostai/futuopend
 
 ```js
 const {
-  // The client manager to connect to the websocket server
+  // The client manager to connect to the REST API server
   FutuOpenDManager,
-  // STATUS enum of the websocket server
+  // STATUS enum shared by the REST API server
   STATUS,
   // To start the mock server with a mocked FutuOpenD for testing purposes
   startMockServer

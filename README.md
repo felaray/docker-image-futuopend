@@ -13,7 +13,7 @@
 
 容器啟動後會執行：
 - 一個 FutuOpenD agent
-- 一個 WebSocket 伺服器，用於檢查 FutuOpenD agent 的就緒狀態，並支援你提供簡訊驗證碼以完成必要初始化
+- 一個 REST API 伺服器，用於檢查 FutuOpenD agent 的就緒狀態，並支援你提交簡訊驗證碼以完成必要初始化
 
 該鏡像一律使用 `DOCKER_DEFAULT_PLATFORM=linux/amd64` 建置（[why?](https://stackoverflow.com/questions/71040681/qemu-x86-64-could-not-open-lib64-ld-linux-x86-64-so-2-no-such-file-or-direc)），可在 Ubuntu 與 MacOS 上執行。
 
@@ -49,7 +49,7 @@ docker pull felaray/futuopend:10.3.6308
 - **FUTU_LOG_LEVEL** `string`，預設 `no`
 - **FUTU_IP** `string`，預設 `"0.0.0.0"`。這與 FutuOpenD CLI 的預設 IP `127.0.0.1` 不同；由於本專案常用於 Kubernetes 叢集，需要讓 FutuOpenD 可以接受其他容器的請求。
 - **FUTU_PORT** `integer`，FutuOpenD 的埠號，預設 `11111`
-- **SERVER_PORT** `integer`，WebSocket 伺服器的埠號，預設 `8000`
+- **SERVER_PORT** `integer`，REST API 伺服器的埠號，預設 `8000`
 - **FUTU_INIT_ON_START** `string="yes"`，容器啟動時是否初始化 Futu OpenD agent，預設 `"yes"`
 - **FUTU_SUPERVISE_PROCESS** `string="yes"`，是否監控 FutuOpenD 子程序，並在退出時嘗試重新連線
 
@@ -130,106 +130,52 @@ docker run \
 felaray/futuopend:latest
 ```
 
-### WebSocket 伺服器
+### REST API 伺服器
+
+```sh
+curl http://localhost:8081/status
+```
+
+回傳範例：
+
+```json
+{
+  "status": 1,
+  "state": "REQUESTING_VERIFICATION_CODE"
+}
+```
+
+初始化容器內的 FutuOpenD agent：
+
+```sh
+curl -X POST http://localhost:8081/init
+```
+
+提交簡訊驗證碼：
+
+```sh
+curl -X POST http://localhost:8081/verification-code \
+  -H "Content-Type: application/json" \
+  -d "{\"code\":\"123456\"}"
+```
+
+如果你想用 Node.js：
 
 ```js
-const {WebSocket} = require('ws')
+const baseUrl = 'http://localhost:8081'
 
-const ws = new WebSocket('ws://localhost:8081')
+const status = await fetch(`${baseUrl}/status`).then(r => r.json())
+console.log(status)
 
-ws.on('message', msg => {
-  const data = JSON.parse(msg)
-
-  if (data.type === 'REQUEST_CODE') {
-    ws.send(JSON.stringify({
-      type: 'VERIFY_CODE',
-      code: '12345'
-    }))
-    return
-  }
-
-  if (data.type === 'STATUS') {
-    console.log('status:', data.status)
-    return
-  }
-})
-
-ws.on('open', () => {
-  ws.send(JSON.stringify({
-    type: 'STATUS'
-  }))
-
-  // 如果環境變數 FUTU_INIT_ON_START=no,
-  // 需要手動初始化 FutuOpenD，讓它啟動
-  ws.send(JSON.stringify({
-    type: 'INIT'
-  }))
+await fetch(`${baseUrl}/init`, { method: 'POST' })
+await fetch(`${baseUrl}/verification-code`, {
+  method: 'POST',
+  headers: {
+    'content-type': 'application/json'
+  },
+  body: JSON.stringify({ code: '123456' })
 })
 ```
-
-下行與上行訊息皆為 JSON 格式。
-
-#### 下行訊息：伺服器 -> 客戶端
-
-```json
-{
-  "type": "REQUEST_CODE"
-}
-```
-
-表示 FutuOpenD agent 需要你提供簡訊驗證碼。
-
-```json
-{
-  "type": "CONNECTED"
-}
-```
-
-表示 FutuOpenD agent 已連線。
-
-```json
-{
-  "type": "STATUS",
-  "status": -1
-}
-```
-
-伺服器回傳目前狀態。
-
-```json
-{
-  "type": "CLOSED"
-}
-```
-
-表示 FutuOpenD 子程序（意外）退出。
-
-#### 上行訊息：客戶端 -> 伺服器
-
-```json
-{
-  "type": "INIT"
-}
-```
-
-告訴伺服器初始化 FutuOpenD agent，僅在環境變數 `FUTU_INIT_ON_START` 設為 `'no'` 時有效。
-
-```json
-{
-  "type": "STATUS"
-}
-```
-
-請求伺服器回傳目前狀態。
-
-```json
-{
-  "type": "VERIFY_CODE",
-  "code": "123456"
-}
-```
-
-向 FutuOpenD agent 提交簡訊驗證碼。
 
 # @ostai/futuopend
 
@@ -243,9 +189,9 @@ npm i @ostai/futuopend
 
 ```js
 const {
-  // 連線到 WebSocket 伺服器的 client manager
+  // 連線到 REST API 伺服器的 client manager
   FutuOpenDManager,
-  // WebSocket 伺服器的狀態列舉
+  // REST API 伺服器共用的狀態列舉
   STATUS,
   // 啟動帶有 mocked FutuOpenD 的測試伺服器
   startMockServer

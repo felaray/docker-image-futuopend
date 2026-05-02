@@ -10,9 +10,14 @@ const {
   STATUS
 } = require('./futu')
 
+const {
+  statusText
+} = require('./common')
+
 
 module.exports = {
   FutuOpenDManager,
   startMockServer,
-  STATUS
+  STATUS,
+  statusText
 }

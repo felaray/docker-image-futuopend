@@ -9,7 +9,18 @@ const STATUS = {
   CONNECTED: 3
 }
 
+const STATUS_TEXT = {
+  [STATUS.CLOSED]: 'CLOSED',
+  [STATUS.ORIGIN]: 'ORIGIN',
+  [STATUS.INIT]: 'INIT',
+  [STATUS.REQUESTING_VERIFICATION_CODE]: 'REQUESTING_VERIFICATION_CODE',
+  [STATUS.VERIFIYING_CODE]: 'VERIFIYING_CODE',
+  [STATUS.CONNECTED]: 'CONNECTED'
+}
+
 const KEY_GETTER = Symbol('getter')
+
+const statusText = status => STATUS_TEXT[status] || 'UNKNOWN'
 
 
 class OutputManager {
@@ -55,6 +66,8 @@ class OutputManager {
 
 module.exports = {
   STATUS,
+  STATUS_TEXT,
+  statusText,
   KEY_GETTER,
   OutputManager
 }
